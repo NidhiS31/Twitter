@@ -21,6 +21,8 @@ defmodule Server do
         createFollowingRegister()
         #create a Table to store list of all the followers of a user
         createFollowersRegister()
+        #create a table for backup of deleted users
+        createDeletedUsersRegister()
         state = ""
         {:ok, state}
     end
@@ -49,6 +51,9 @@ defmodule Server do
         :ets.new(:followersRegister, [:set, :public, :named_table])
     end
 
+    def createDeletedUsersRegister() do
+        :ets.new(:deletedUsers, [:set, :public, :named_table])
+    end
 
     @impl true
     def handle_cast({:registerUser,userName,userPID}, state) do
@@ -57,9 +62,10 @@ defmodule Server do
         :ets.insert(:hashtagsRegister, {userName, userPID, 0, []})
         :ets.insert(:mentionsRegister, {userName, userPID, 0, []})
         :ets.insert(:followingRegister, {userName, []})
-        if :ets.lookup(:followersRegister, userName) == [] do
-            :ets.insert(:followersRegister, {userName, []})
-        end
+        # if :ets.lookup(:followersRegister, userName) == [] do
+        :ets.insert(:followersRegister, {userName, []})
+        :ets.insert(:deletedUsers, {userName, 0})
+        # end
         send(userPID, {:userRegistered})
         {:noreply, state}
     end
@@ -97,6 +103,38 @@ defmodule Server do
         {:noreply, state}
     end
 
+    def handle_cast({:addToFollowers, userName, followerName}, state) do
+        existingFollowers = elem(Enum.at(:ets.lookup(:followersRegister,userName),0),1)
+        updatedFollowers =  if(!Enum.member?(existingFollowers, followerName)) do
+                                existingFollowers ++ [followerName]
+                            else
+                                existingFollowers
+                            end
+        :ets.insert(:followersRegister, {userName, updatedFollowers})
+        existingSubscribers = elem(Enum.at(:ets.lookup(:followingRegister,userName),0),1)
+        updatedSubscribers =if(!Enum.member?(existingSubscribers, userName)) do
+                                existingSubscribers ++ [userName]
+                            else
+                                existingSubscribers
+                            end
+        :ets.insert(:followingRegister, {followerName, updatedSubscribers})
+        {:noreply, state}
+    end
+
+    def handle_cast({:deleteRandomUsers, deleteUserName, usersToDelete}, state) do
+        existingUser = elem(Enum.at(:ets.lookup(:userRegister,deleteUserName),0),1)
+        deleteCounter = elem(Enum.at(:ets.lookup(:deletedUsers, deleteUserName),0),1)
+        deleteCounter =  if((existingUser != nil) && deleteCounter <= usersToDelete ) do
+            IO.puts("deleting user:")
+            IO.inspect(deleteUserName)
+            # usersToDelete - 1
+            :ets.insert(:userRegister, {deleteUserName, nil})
+            :ets.insert(:deletedUsers, {deleteUserName, deleteCounter})
+            deleteCounter = deleteCounter + 1            
+        end
+        {:noreply, state}
+    end
+
     @impl true
     def handle_call({:getTweetLimit, userName}, _from, state) do
         tweetLimit = elem(Enum.at(:ets.lookup(:tweetsRegister,userName),0),2)
@@ -104,7 +142,7 @@ defmodule Server do
         {:reply, tweetLimit, state}
     end
 
-    # Helper functions
+     # Helper functions
     # def whereis(userId) do
     #     if :ets.lookup(:userRegister, userId) == [] do
     #         nil

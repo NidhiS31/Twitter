@@ -10,6 +10,12 @@ defmodule Final do
     # starting client
     numOfUsers = String.to_integer(Enum.at(args, 0))
     numOfRequests = String.to_integer(Enum.at(args, 1))
+    # maxSubscribers = if numOfRequests > 0.5 * numOfUsers do
+    #                     numOfRequests
+    #                  else
+    #                     round(0.5 * numOfUsers)
+    #                  end
+    # IO.inspect(maxSubscribers)
     serverPID = elem(Enum.at(:ets.lookup(:serverNode,"Server"),0),1)
     :ets.new(:globalRegister, [:set, :public, :named_table])
     createNewUsers(1,numOfUsers,numOfRequests, serverPID)
@@ -20,6 +26,7 @@ defmodule Final do
     userName = "User" <> Integer.to_string(userNumber)
     userPID = spawn(fn -> Client.start_link(userName, numOfUsers, numOfRequests, false) end)
     :ets.insert(:globalRegister, {userName, userPID})
+    # IO.inspect(elem(Enum.at(:ets.lookup(:globalRegister,userName),0),2))
     userNumber = userNumber + 1
     createNewUsers(userNumber, numOfUsers, numOfRequests, serverPID)
   end
