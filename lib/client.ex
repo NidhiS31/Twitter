@@ -15,8 +15,6 @@ defmodule Client do
             {:userRegistered} -> IO.puts("#{userName} is now registered!")
         end
 
-        
-
         followerGenerator(serverPID, userName, numOfUsers, numOfRequests, userPID)        
         usersToDelete = round(Float.ceil(0.1 * numOfUsers))
         deleteUsers(usersToDelete, serverPID, numOfUsers)
