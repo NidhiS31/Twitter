@@ -106,6 +106,7 @@ defmodule Server do
         {:noreply, state}
     end
 
+    @impl true
     def handle_cast({:addToFollowers, userName, followerName}, state) do
         existingFollowers = elem(Enum.at(:ets.lookup(:followersRegister,userName),0),1)
         updatedFollowers =  if(!Enum.member?(existingFollowers, followerName)) do
@@ -124,6 +125,7 @@ defmodule Server do
         {:noreply, state}
     end
 
+    @impl true
     def handle_cast({:deleteRandomUsers, deleteUserName, usersToDelete}, state) do
         existingUser = elem(Enum.at(:ets.lookup(:userRegister,deleteUserName),0),1)
         deleteCounter = elem(Enum.at(:ets.lookup(:deletedUsers, deleteUserName),0),1)
@@ -141,6 +143,7 @@ defmodule Server do
         {:noreply, state}
     end
 
+    @impl true
     def handle_cast({:sendRetweets, userName, retweet, retweetOfUser, userPID}, state) do
         existingTweets = elem(Enum.at(:ets.lookup(:tweetsRegister,userName),0),3)
         # IO.inspect(existingTweets)
@@ -159,6 +162,7 @@ defmodule Server do
         {:reply, tweetLimit, state}
     end
 
+    @impl true
     def handle_call({:getTweetToRetweet, userName}, _from, state) do
         followingList = elem(Enum.at(:ets.lookup(:followingRegister,userName),0),1)
         randomFollowingUser =   if followingList != nil do
