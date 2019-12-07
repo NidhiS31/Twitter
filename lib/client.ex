@@ -167,6 +167,8 @@ def followerGenerator(serverPID, _userName, numOfUsers, numOfRequests, userPID) 
     tweetWithMentions(numOfUsers, numOfRequests, serverPID, userPID)
     sendRetweets(serverPID, numOfUsers, userPID)
     queryForSubscribedTo(numOfUsers, serverPID)
+    queryHashTag(serverPID, numOfUsers)
+    queryMention(serverPID, numOfUsers)
 end
 
 #generate followers for a user
@@ -217,6 +219,19 @@ end
 
 def getTweetsOfSubscribedTo(serverPID, userName, userSubscribedTo) do
     GenServer.cast(serverPID, {:getAllTweets, userName, userSubscribedTo})
+end
+
+#Query by hashtag
+def queryHashTag(serverPID, numOfUsers) do
+    #select a random hashtag and call the server to fetch all the tweets with hashtags
+    randomHashTag = getRandomHashtags()
+    GenServer.cast(serverPID, {:queryHashTag, randomHashTag, numOfUsers})
+end
+
+#Query by Mention
+def queryMention(serverPID, numOfUsers) do
+    randomUserName = getRandomUser(numOfUsers)
+    GenServer.cast(serverPID, {:queryMention, randomUserName, numOfUsers})
 end
 
 end
