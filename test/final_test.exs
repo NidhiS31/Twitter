@@ -4,9 +4,9 @@ defmodule FinalTest do
   doctest Server
   doctest Client
 
-  # test "Register Users" do
-  #   assert Final.main(["10", "5"]) == "hello"
-  # end
+  test "Register Users" do
+    assert Final.main(["10", "5"]) == "hello"
+  end
 
   test "Register User Test" do
     :ets.new(:serverNode, [:set, :public, :named_table])

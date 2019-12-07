@@ -56,34 +56,34 @@ defmodule Client do
     end
 
 
-    def pickRandomUserForTweeting(numOfUsers, numOfRequests, serverPID, userPID) do
+    def tweetForUser(numOfUsers, numOfRequests, serverPID, userPID) do
         # get a random user from global register
         randomUser = getRandomUser(numOfUsers)
          if(getTweetLimit(serverPID, randomUser) > numOfRequests) do
             # if user reached tweet limit pick another user
-            pickRandomUserForTweeting(numOfUsers, numOfRequests, serverPID, userPID)
+            tweetForUser(numOfUsers, numOfRequests, serverPID, userPID)
         end
         tweetGenerator(numOfRequests, serverPID, randomUser, userPID)
     end
 
-    def pickRandomUserForTweetingWithHashtags(numOfUsers, numOfRequests, serverPID, userPID) do
+    def tweetWithHashtags(numOfUsers, numOfRequests, serverPID, userPID) do
         randomUser = getRandomUser(numOfUsers)
         if(getTweetLimit(serverPID, randomUser) > numOfRequests) do
            # if user reached tweet limit pick another user
-           pickRandomUserForTweeting(numOfUsers, numOfRequests, serverPID, userPID)
+           tweetWithHashtags(numOfUsers, numOfRequests, serverPID, userPID)
        end
        hashtagTweetGenerator(numOfRequests, serverPID, randomUser, userPID)
     end
 
-    def pickRandomUserForTweetingWithMentions(numOfUsers, numOfRequests, serverPID, userPID) do
+    def tweetWithMentions(numOfUsers, numOfRequests, serverPID, userPID) do
         randomUser = getRandomUser(numOfUsers)
         if(getTweetLimit(serverPID, randomUser) > numOfRequests) do
            # if user reached tweet limit pick another user
-           pickRandomUserForTweeting(numOfUsers, numOfRequests, serverPID, userPID)
+           tweetWithMentions(numOfUsers, numOfRequests, serverPID, userPID)
        end
        mentionTweetGenerator(numOfUsers, numOfRequests, serverPID, randomUser, userPID)
     end
-
+    #generate tweets
     def tweetGenerator(numOfRequests, serverPID, userName, userPID) do
         tweets = getRandomTweet()
         sendTweets(serverPID, userName, userPID, numOfRequests, tweets)
@@ -93,6 +93,7 @@ defmodule Client do
         end
     end
 
+    #generate tweets with hashtags
     def hashtagTweetGenerator(numOfRequests, serverPID, userName, userPID) do
         hashtagsTweets = getTweetsWithHashtags()
         # IO.inspect(hashtagsTweets)
@@ -103,6 +104,7 @@ defmodule Client do
         end
     end
 
+    #generate tweets with mentions
     def mentionTweetGenerator(numOfUsers, numOfRequests, serverPID, userName, userPID) do
         mentionedUser = getMentionedUser(numOfUsers)
         tweet = getRandomTweet() <> mentionedUser
@@ -138,6 +140,23 @@ defmodule Client do
         GenServer.cast(serverPID, {:userTweetWithMention, userName, userPID, numOfRequests, tweet, mentionedUser})
     end
 
+    def sendRetweets(serverPID, numOfUsers, userPID)  do
+        userName = getRandomUser(numOfUsers)
+        retweetDetail = getRetweet(serverPID, userName)
+        if(retweetDetail != []) do
+        retweet = Enum.at(retweetDetail, 1)
+        retweetOfUser = Enum.at(retweetDetail, 0)
+        GenServer.cast(serverPID, {:sendRetweets, userName, retweet, retweetOfUser, userPID})
+        else 
+            sendRetweets(serverPID, numOfUsers, userPID)
+        end
+    end
+
+    def getRetweet(serverPID, userName) do
+        retweetDetail = GenServer.call(serverPID, {:getTweetToRetweet, userName})
+        retweetDetail
+    end
+
     def followerGenerator(serverPID, userName, numOfUsers, numOfRequests, userPID) when numOfRequests > 0 do
         addFollowers(userName, serverPID, numOfUsers)
         followerGenerator(serverPID, userName, numOfUsers, numOfRequests - 1, userPID)
@@ -145,12 +164,14 @@ defmodule Client do
 
     def followerGenerator(serverPID, _userName, numOfUsers, numOfRequests, userPID) when numOfRequests == 0 do        
         # randomly pick a tweet from list and use it for a user
-        pickRandomUserForTweeting(numOfUsers, numOfRequests, serverPID, userPID)
-        pickRandomUserForTweetingWithHashtags(numOfUsers, numOfRequests, serverPID, userPID)
-        pickRandomUserForTweetingWithMentions(numOfUsers, numOfRequests, serverPID, userPID)
+        tweetForUser(numOfUsers, numOfRequests, serverPID, userPID)
+        tweetWithHashtags(numOfUsers, numOfRequests, serverPID, userPID)
+        tweetWithMentions(numOfUsers, numOfRequests, serverPID, userPID)
+        sendRetweets(serverPID, numOfUsers, userPID) 
     end
 
     #generate followers for a user
+    @spec addFollowers(any, atom | pid | {atom, any} | {:via, atom, any}, integer) :: :ok
     def addFollowers(userName, serverPID, numOfUsers) do
         followerName = getFollower(userName, numOfUsers)
         # IO.inspect(followerName)

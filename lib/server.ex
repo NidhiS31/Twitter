@@ -141,6 +141,17 @@ defmodule Server do
         {:noreply, state}
     end
 
+    def handle_cast({:sendRetweets, userName, retweet, retweetOfUser, userPID}, state) do
+        existingTweets = elem(Enum.at(:ets.lookup(:tweetsRegister,userName),0),3)
+        # IO.inspect(existingTweets)
+        updatedTweets = existingTweets ++ [retweet]
+        tweetLimit = elem(Enum.at(:ets.lookup(:tweetsRegister,userName),0),2)
+        tweetLimit = tweetLimit + 1
+        :ets.insert(:tweetsRegister, {userName, userPID, tweetLimit, updatedTweets})
+        IO.inspect("#{userName} retweeted: #{retweet} of #{retweetOfUser}")
+        {:noreply, state}
+    end
+
     @impl true
     def handle_call({:getTweetLimit, userName}, _from, state) do
         tweetLimit = elem(Enum.at(:ets.lookup(:tweetsRegister,userName),0),2)
@@ -148,13 +159,31 @@ defmodule Server do
         {:reply, tweetLimit, state}
     end
 
-     # Helper functions
-    # def whereis(userId) do
-    #     if :ets.lookup(:userRegister, userId) == [] do
-    #         nil
-    #     else
-    #         [tup] = :ets.lookup(:userRegister, userId)
-    #         elem(tup, 1)
-    #     end
-    # end
+    def handle_call({:getTweetToRetweet, userName}, _from, state) do
+        followingList = elem(Enum.at(:ets.lookup(:followingRegister,userName),0),1)
+        randomFollowingUser =   if followingList != nil do
+                                    Enum.random(followingList)
+                                else 
+                                    ""
+                                end
+        followingTweetsList =   if randomFollowingUser != nil do
+                                    elem(Enum.at(:ets.lookup(:tweetsRegister,userName),0),3)
+                                else
+                                    []
+                                end
+        retweet = if(followingTweetsList != []) do
+            randomRetweet = Enum.random(followingTweetsList)
+            retweet =   if randomRetweet != nil do
+                            [randomFollowingUser] ++ [randomRetweet]
+                        else
+                            [] 
+                        end    
+            retweet    
+        else 
+            retweet = []
+            retweet
+        end
+        {:reply, retweet, state}
+    end
+
 end
