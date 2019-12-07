@@ -17,7 +17,9 @@ def init([userName, numOfUsers, numOfRequests, isExistingUser]) do
 
     followerGenerator(serverPID, userName, numOfUsers, numOfRequests, userPID)
     usersToDelete = round(Float.ceil(0.1 * numOfUsers))
+    numOfUsersToDisconnect = round(Float.ceil(0.4 * numOfUsers))
     deleteUsers(usersToDelete, serverPID, numOfUsers)
+    disconnectUsers(numOfUsersToDisconnect, serverPID, numOfUsers)
 end
 
 # randomly pick a tweet from tweest list and use it for a user
@@ -99,7 +101,6 @@ def hashtagTweetGenerator(numOfRequests, serverPID, userName, userPID) do
     sendTweetsWithHashtags(serverPID, userName, userPID, numOfRequests, hashtagsTweets)
     receive do
         {:userTweetedWithHashTags, tweet} -> {:ok, tweet}
-            # IO.inspect("#{userName} tweeted with Hashtag: #{hashtagsTweets}")
     end
 end
 
@@ -109,12 +110,12 @@ def mentionTweetGenerator(numOfUsers, numOfRequests, serverPID, userName, userPI
     sendTweetsWithMention(serverPID, userName, userPID, numOfRequests, tweet, mentionedUser)
     receive do
         {:userTweetedWithMentions, tweet} -> {:ok, tweet}
-            # IO.inspect("#{userName} mentioned #{mentionedUser}: #{tweet}")
     end
 end
 
 def sendRetweets(serverPID, numOfUsers, userPID)  do
 userName = getRandomUser(numOfUsers)
+#Check if useer is alive?
 retweetDetail = getRetweet(serverPID, userName)
 if(!Enum.empty?(retweetDetail)) do
     retweet = Enum.at(retweetDetail, 1)
@@ -123,6 +124,8 @@ if(!Enum.empty?(retweetDetail)) do
 else
     sendRetweets(serverPID, numOfUsers, userPID)
 end
+# if user is not alive - store tweets in another table,
+# when user comes back alive, get the user's tweets and display them
 end
 
 def getRetweet(serverPID, userName) do
@@ -190,10 +193,17 @@ def getFollower(userName, numOfUsers) do
 end
 
 def deleteUsers(usersToDelete, serverPID, numOfUsers) do
-    # when usersToDelete > 0
     deleteUserName = getRandomUser(numOfUsers)
     GenServer.cast(serverPID, {:deleteRandomUsers, deleteUserName, usersToDelete})
 end
+
+
+def disconnectUsers(numOfUsersToDisconnect, serverPID, numOfUsers) do
+    userToDisconnect = getRandomUser(numOfUsers)
+    GenServer.cast(serverPID, {:disconnectRandomUsers, userToDisconnect, numOfUsersToDisconnect})
+end
+
+# def reconnectUsers()
 
 #Query for a user you subscribed to
 def queryForSubscribedTo(numOfUsers, serverPID) do

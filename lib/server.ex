@@ -23,6 +23,8 @@ def init(:ok) do
     createFollowersRegister()
     #create a table for backup of deleted users
     createDeletedUsersRegister()
+    #create table for backup of disconnected users
+    createDisconnectedUserRegister()
     state = ""
     {:ok, state}
 end
@@ -55,6 +57,10 @@ def createDeletedUsersRegister() do
     :ets.new(:deletedUsers, [:set, :public, :named_table])
 end
 
+def createDisconnectedUserRegister() do
+    :ets.new(:disconnectedUsers, [:set, :public, :named_table])
+end
+
 @impl true
 def handle_cast({:registerUser,userName,userPID}, state) do
     :ets.insert(:userRegister, {userName, userPID})
@@ -62,10 +68,9 @@ def handle_cast({:registerUser,userName,userPID}, state) do
     :ets.insert(:hashtagsRegister, {userName, userPID, 0, []})
     :ets.insert(:mentionsRegister, {userName, userPID, 0, []})
     :ets.insert(:followingRegister, {userName, []})
-    # if :ets.lookup(:followersRegister, userName) == [] do
     :ets.insert(:followersRegister, {userName, []})
     :ets.insert(:deletedUsers, {userName, 0})
-    # end
+    :ets.insert(:disconnectedUsers, {userName, nil, 0})
     send(userPID, {:userRegistered, userName})
     {:noreply, state}
 end
@@ -130,15 +135,23 @@ def handle_cast({:deleteRandomUsers, deleteUserName, usersToDelete}, state) do
     existingUser = elem(Enum.at(:ets.lookup(:userRegister,deleteUserName),0),1)
     deleteCounter = elem(Enum.at(:ets.lookup(:deletedUsers, deleteUserName),0),1)
     deleteCounter =  if((existingUser != nil) && deleteCounter <= usersToDelete ) do
-        IO.puts("deleting user:")
-        IO.inspect(deleteUserName)
-        # usersToDelete - 1
+        IO.puts("#{deleteUserName} has been Deleted!!")
         :ets.insert(:userRegister, {deleteUserName, nil})
         :ets.insert(:deletedUsers, {deleteUserName, deleteCounter})
         deleteCounter = deleteCounter + 1
-    # else
-    #     IO.puts("Unable to delete!")
-    #     deleteCounter
+    end
+    {:noreply, state}
+end
+
+@impl true
+def handle_cast({:disconnectRandomUsers, userToDisconnect, numOfUsersToDisconnect}, state) do
+    activeUserPID = elem(Enum.at(:ets.lookup(:userRegister,userToDisconnect),0),1)
+    disconnectCounter = elem(Enum.at(:ets.lookup(:disconnectedUsers, userToDisconnect),0),2)
+    disconnectCounter =  if((activeUserPID != nil) && disconnectCounter <= numOfUsersToDisconnect ) do
+        :ets.insert(:disconnectedUsers, {userToDisconnect, activeUserPID, disconnectCounter})
+        :ets.insert(:userRegister, {userToDisconnect, nil})
+        IO.puts("#{userToDisconnect} is now Disconnected!!")
+        disconnectCounter = disconnectCounter + 1
     end
     {:noreply, state}
 end
