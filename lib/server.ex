@@ -155,6 +155,19 @@ def handle_cast({:sendRetweets, userName, retweet, retweetOfUser, userPID}, stat
     {:noreply, state}
 end
 
+@impl true
+def handle_cast({:getAllTweets, userName, userSubscribedTo},state) do
+    followingTweetsList = elem(Enum.at(:ets.lookup(:tweetsRegister, userSubscribedTo),0),3)
+    IO.puts("The tweets of #{userSubscribedTo} as Queried by #{userName}")
+    if !Enum.empty?(followingTweetsList) do
+        Enum.each(followingTweetsList, fn tweets -> 
+                    IO.puts(tweets) end)
+    else
+        IO.puts("There are no Tweets by #{userSubscribedTo}")
+    end
+    {:noreply, state}
+end
+
 
 @impl true
 def handle_call({:getTweetToRetweet, userName}, _from, state) do
@@ -184,11 +197,19 @@ def handle_call({:getTweetToRetweet, userName}, _from, state) do
     {:reply, retweet, state}
 end
 
+
+
 @impl true
 def handle_call({:getTweetLimit, userName}, _from, state) do
     tweetLimit = elem(Enum.at(:ets.lookup(:tweetsRegister,userName),0),2)
     # IO.inspect(tweetLimit)
     {:reply, tweetLimit, state}
+end
+
+@impl true
+def handle_call({:getfollowingUsers, userName}, _from, state) do
+    followingUsersList = elem(Enum.at(:ets.lookup(:followingRegister,userName),0),1)
+    {:reply, followingUsersList, state}
 end
 
 end

@@ -166,6 +166,7 @@ def followerGenerator(serverPID, _userName, numOfUsers, numOfRequests, userPID) 
     tweetWithHashtags(numOfUsers, numOfRequests, serverPID, userPID)
     tweetWithMentions(numOfUsers, numOfRequests, serverPID, userPID)
     sendRetweets(serverPID, numOfUsers, userPID)
+    queryForSubscribedTo(numOfUsers, serverPID)
 end
 
 #generate followers for a user
@@ -190,6 +191,32 @@ def deleteUsers(usersToDelete, serverPID, numOfUsers) do
     # when usersToDelete > 0
     deleteUserName = getRandomUser(numOfUsers)
     GenServer.cast(serverPID, {:deleteRandomUsers, deleteUserName, usersToDelete})
+end
+
+#Query for a user you subscribed to
+def queryForSubscribedTo(numOfUsers, serverPID) do
+    randomUser = getRandomUser(numOfUsers)
+    followingList = getFollowingList(serverPID, randomUser)
+    randomSubscribedTo =if !Enum.empty?(followingList) do
+                            Enum.random(followingList)
+                        else
+                            ""
+                        end
+    if randomSubscribedTo != "" do
+        getTweetsOfSubscribedTo(serverPID, randomUser, randomSubscribedTo)
+    else
+        queryForSubscribedTo(numOfUsers, serverPID)
+    end
+end
+
+@spec getFollowingList(atom | pid | {atom, any} | {:via, atom, any}, any) :: any
+def getFollowingList(serverPID, userName) do
+    followingUsersList = GenServer.call(serverPID, {:getfollowingUsers, userName})
+    followingUsersList
+end
+
+def getTweetsOfSubscribedTo(serverPID, userName, userSubscribedTo) do
+    GenServer.cast(serverPID, {:getAllTweets, userName, userSubscribedTo})
 end
 
 end
