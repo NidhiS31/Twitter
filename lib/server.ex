@@ -78,6 +78,7 @@ defmodule Server do
         tweetLimit = tweetLimit + 1
         :ets.insert(:tweetsRegister, {userName, userPID, tweetLimit, updatedTweets})
         IO.inspect("#{userName} tweeted: #{tweets}")
+        send(userPID, {:userTweeted})
         {:noreply, state}
     end
 
@@ -89,6 +90,7 @@ defmodule Server do
         tweetLimit = tweetLimit + 1
         :ets.insert(:hashtagsRegister, {userName, userPID, tweetLimit, updatedTweets})
         IO.inspect("#{userName} tweeted with Hashtag: #{tweets}")
+        send(userPID, {:userTweetedWithHashTags})
         {:noreply, state}
     end
 
@@ -100,6 +102,7 @@ defmodule Server do
         tweetLimit = tweetLimit + 1
         :ets.insert(:mentionsRegister, {userName, userPID, tweetLimit, updatedTweets})
         IO.inspect("#{userName} mentioned #{mentionedUser}: #{tweets}")
+        send(userPID, {:userTweetedWithMentions})
         {:noreply, state}
     end
 
@@ -130,7 +133,10 @@ defmodule Server do
             # usersToDelete - 1
             :ets.insert(:userRegister, {deleteUserName, nil})
             :ets.insert(:deletedUsers, {deleteUserName, deleteCounter})
-            deleteCounter = deleteCounter + 1            
+            deleteCounter = deleteCounter + 1  
+        # else 
+        #     IO.puts("Unable to delete!")
+        #     deleteCounter          
         end
         {:noreply, state}
     end

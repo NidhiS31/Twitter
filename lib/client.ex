@@ -37,69 +37,98 @@ defmodule Client do
 
     #get a tweet containing hashtag in it
     def getTweetsWithHashtags() do
-        tweetsWithHashtags = getRandomTweet() <> getRandomHashtags()
+        space = " "
+        tweetsWithHashtags = getRandomTweet() <> space <> getRandomHashtags()
+        # IO.inspect(tweetsWithHashtags)
         tweetsWithHashtags
     end
-    
-    # randomly pick a user to mention in a tweet for a user
+
     def getMentionedUser(numOfUsers) do
-        randomUser = randomUserSelector(numOfUsers)
-        mentionUser = "@" <> randomUser
+        randomUser = getRandomUser(numOfUsers)
+        space = " "
+        mentionUser = space <> "@" <> randomUser
         mentionUser
+    end
+
+    def getRandomUser(numOfUsers) do
+        randomUser = "User" <> Integer.to_string(Enum.random(1..numOfUsers))
+        randomUser
+    end
+
+
+    def pickRandomUserForTweeting(numOfUsers, numOfRequests, serverPID, userPID) do
+        # get a random user from global register
+        randomUser = getRandomUser(numOfUsers)
+         if(getTweetLimit(serverPID, randomUser) > numOfRequests) do
+            # if user reached tweet limit pick another user
+            pickRandomUserForTweeting(numOfUsers, numOfRequests, serverPID, userPID)
+        end
+        tweetGenerator(numOfRequests, serverPID, randomUser, userPID)
+    end
+
+    def pickRandomUserForTweetingWithHashtags(numOfUsers, numOfRequests, serverPID, userPID) do
+        randomUser = getRandomUser(numOfUsers)
+        if(getTweetLimit(serverPID, randomUser) > numOfRequests) do
+           # if user reached tweet limit pick another user
+           pickRandomUserForTweeting(numOfUsers, numOfRequests, serverPID, userPID)
+       end
+       hashtagTweetGenerator(numOfRequests, serverPID, randomUser, userPID)
+    end
+
+    def pickRandomUserForTweetingWithMentions(numOfUsers, numOfRequests, serverPID, userPID) do
+        randomUser = getRandomUser(numOfUsers)
+        if(getTweetLimit(serverPID, randomUser) > numOfRequests) do
+           # if user reached tweet limit pick another user
+           pickRandomUserForTweeting(numOfUsers, numOfRequests, serverPID, userPID)
+       end
+       mentionTweetGenerator(numOfUsers, numOfRequests, serverPID, randomUser, userPID)
+    end
+
+    def tweetGenerator(numOfRequests, serverPID, userName, userPID) do
+        tweets = getRandomTweet()
+        sendTweets(serverPID, userName, userPID, numOfRequests, tweets)
+        receive do
+            {:userTweeted} -> {:ok, tweets}
+                # IO.inspect("#{userName} tweeted: #{tweets}")
+        end
+    end
+
+    def hashtagTweetGenerator(numOfRequests, serverPID, userName, userPID) do
+        hashtagsTweets = getTweetsWithHashtags()
+        # IO.inspect(hashtagsTweets)
+        sendTweetsWithHashtags(serverPID, userName, userPID, numOfRequests, hashtagsTweets)
+        receive do
+            {:userTweetedWithHashTags} -> {:ok, hashtagsTweets}
+                # IO.inspect("#{userName} tweeted with Hashtag: #{hashtagsTweets}")
+        end
+    end
+
+    def mentionTweetGenerator(numOfUsers, numOfRequests, serverPID, userName, userPID) do
+        mentionedUser = getMentionedUser(numOfUsers)
+        tweet = getRandomTweet() <> mentionedUser
+        sendTweetsWithMention(serverPID, userName, userPID, numOfRequests, tweet, mentionedUser)
+        receive do
+            {:userTweetedWithMentions} -> {:ok, tweet}
+                # IO.inspect("#{userName} mentioned #{mentionedUser}: #{tweet}")
+        end
     end
 
     #Register Account for  new User.
     def registerUser(serverPID, userName, userPID) do
         GenServer.cast(serverPID, {:registerUser,userName,userPID})
     end
-    
-    #Pick a random user to send tweets
-    def pickRandomUserForTweeting(numOfUsers, numOfRequests, serverPID, userPID) do
-        # get a random user from global register
-        randomUser = randomUserSelector(numOfUsers)
-        # randomUser = elem(Enum.at(:ets.lookup(:globalRegister, :userName),randomPosition),0)
-        # Process.sleep(1000)
-         if(getTweetLimit(serverPID, randomUser) > numOfRequests) do
-            # if user reached tweet limit pick another user
-            pickRandomUserForTweeting(numOfUsers, numOfRequests, serverPID, userPID)
-            # Process.sleep(1000)
-        end
-        tweetGenerator(numOfRequests, serverPID, randomUser, userPID)
-        hashtagTweetGenerator(numOfRequests, serverPID, randomUser, userPID)
-        mentionTweetGenerator(numOfUsers, numOfRequests, serverPID, randomUser, userPID)
+   
+    #send tweets
+    def sendTweets(serverPID, userName, userPID, numOfRequests, tweets) do
+      GenServer.cast(serverPID, {:userTweet, userName, userPID, numOfRequests, tweets})
     end
 
-    #generate tweets 
-    def tweetGenerator(numOfRequests, serverPID, userName, userPID) do
-        tweets = getRandomTweet()
-        sendTweets(serverPID, userName, userPID, numOfRequests, tweets)
-        # tweetGenerator(numOfRequests - 1, serverPID, userName, userPID)
-    end
-
-    #generate tweets conatining hashtags
-    def hashtagTweetGenerator(numOfRequests, serverPID, userName, userPID) do
-        hashtagsTweets = getTweetsWithHashtags()
-        # IO.inspect(hashtagsTweets)
-        sendTweetsWithHashtags(serverPID, userName, userPID, numOfRequests, hashtagsTweets)
-    end
-
-    #generate tweets conatining mentions
-    def mentionTweetGenerator(numOfUsers, numOfRequests, serverPID, userName, userPID) do
-        mentionedUser = getMentionedUser(numOfUsers)
-        tweet = getRandomTweet() <> mentionedUser
-        sendTweetsWithMention(serverPID, userName, userPID, numOfRequests, tweet, mentionedUser)
-    end
-
-    #get the tweetlimit which should be less than the numOfRequests
+     #get the tweetlimit which should be less than the numOfRequests
     def getTweetLimit(serverPID, userName) do
         tweetLimit = GenServer.call(serverPID, {:getTweetLimit, userName})
         tweetLimit
     end
 
-    #send tweets
-    def sendTweets(serverPID, userName, userPID, numOfRequests, tweets) do
-      GenServer.cast(serverPID, {:userTweet, userName, userPID, numOfRequests, tweets})
-    end
     #send tweets with hashtags
     def sendTweetsWithHashtags(serverPID, userName, userPID, numOfRequests, tweets) do
         GenServer.cast(serverPID, {:userTweetWithHashtags, userName, userPID, numOfRequests, tweets})
@@ -114,8 +143,11 @@ defmodule Client do
         followerGenerator(serverPID, userName, numOfUsers, numOfRequests - 1, userPID)
     end
 
-    def followerGenerator(serverPID, userName, numOfUsers, numOfRequests, userPID) when numOfRequests == 0 do        
-        pickRandomUserForTweeting(numOfUsers, numOfRequests, serverPID, userPID) 
+    def followerGenerator(serverPID, _userName, numOfUsers, numOfRequests, userPID) when numOfRequests == 0 do        
+        # randomly pick a tweet from list and use it for a user
+        pickRandomUserForTweeting(numOfUsers, numOfRequests, serverPID, userPID)
+        pickRandomUserForTweetingWithHashtags(numOfUsers, numOfRequests, serverPID, userPID)
+        pickRandomUserForTweetingWithMentions(numOfUsers, numOfRequests, serverPID, userPID)
     end
 
     #generate followers for a user
@@ -126,7 +158,7 @@ defmodule Client do
     end
 
     def getFollower(userName, numOfUsers) do
-        followerString = randomUserSelector(numOfUsers)
+        followerString = getRandomUser(numOfUsers)
         followerName =  if userName == followerString do
                             getFollower(userName, numOfUsers)
                         else
@@ -138,12 +170,8 @@ defmodule Client do
 
     def deleteUsers(usersToDelete, serverPID, numOfUsers) do        
         # when usersToDelete > 0
-        deleteUserName = randomUserSelector(numOfUsers)
+        deleteUserName = getRandomUser(numOfUsers)
         GenServer.cast(serverPID, {:deleteRandomUsers, deleteUserName, usersToDelete})
     end
-    def randomUserSelector(numOfUsers) do
-        randomNumber = Enum.random(1..numOfUsers)
-        randomString = "User" <> Integer.to_string(randomNumber)
-        randomString
-    end
+
 end
