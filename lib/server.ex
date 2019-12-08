@@ -112,21 +112,24 @@ def handle_cast({:userTweetWithMention, userName, userPID, tweetLimit, tweets, m
 end
 
 @impl true
-def handle_cast({:addToFollowers, userName, followerName}, state) do
-    existingFollowers = elem(Enum.at(:ets.lookup(:followersRegister,userName),0),1)
-    updatedFollowers =  if(!Enum.member?(existingFollowers, followerName)) do
-                            existingFollowers ++ [followerName]
-                        else
-                            existingFollowers
-                        end
-    :ets.insert(:followersRegister, {userName, updatedFollowers})
-    existingSubscribers = elem(Enum.at(:ets.lookup(:followingRegister,userName),0),1)
-    updatedSubscribers =if(!Enum.member?(existingSubscribers, userName)) do
-                            existingSubscribers ++ [userName]
-                        else
-                            existingSubscribers
-                        end
-    :ets.insert(:followingRegister, {followerName, updatedSubscribers})
+def handle_cast({:addToFollowers, userName, userFollowers}, state) do
+
+    if (userFollowers != nil or userFollowers != []) do
+        :ets.insert(:followersRegister, {userName, userFollowers})
+        Enum.each(userFollowers, fn(follower) -> 
+            currentFollowingTuple = :ets.lookup(:followingRegister,follower)
+            if currentFollowingTuple != [] do
+                currentFollowingList = elem(Enum.at(currentFollowingTuple, 0),1)
+                updatedFollowingList =  if(!Enum.member?(currentFollowingList, userName)) do
+                    currentFollowingList ++ [userName]
+                else
+                    currentFollowingList
+                end
+                
+                :ets.insert(:followingRegister, {follower, updatedFollowingList})
+            end
+        end)
+    end
     {:noreply, state}
 end
 
@@ -311,7 +314,6 @@ def getListOfDisconnectedUsers(startValue, numOfUsers, disConnectedList) when st
 end
 
 def getListOfDisconnectedUsers(startValue, numOfUsers, disConnectedList) when startValue > numOfUsers do
-    # if (!Enum.empty?())
     disConnectedList
 end
 

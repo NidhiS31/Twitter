@@ -5,7 +5,7 @@ doctest Server
 doctest Client
 
 test "Debug" do
-  Final.main(["10","5"]) == ":ok"
+  Final.main(["10", "5"]) == ":ok"
 end
 
 test "Register User Test" do
