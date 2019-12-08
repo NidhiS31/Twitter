@@ -14,12 +14,27 @@ def init([userName, numOfUsers, numOfRequests, isExistingUser]) do
     receive do
         {:userRegistered, userName} -> IO.puts("#{userName} is now registered!")
     end
-
-    followerGenerator(serverPID, userName, numOfUsers, numOfRequests, userPID)
+    
     usersToDelete = round(Float.ceil(0.1 * numOfUsers))
     numOfUsersToDisconnect = round(Float.ceil(0.4 * numOfUsers))
+
+    twitterHandler(serverPID, userName, numOfUsers, numOfRequests, userPID, usersToDelete, numOfUsersToDisconnect)
+
+end
+
+def twitterHandler(serverPID, userName, numOfUsers, numOfRequests, userPID, usersToDelete, numOfUsersToDisconnect) do
+    followerGenerator(serverPID, userName, numOfUsers, numOfRequests, userPID)
+    tweetForUser(numOfUsers, numOfRequests, serverPID, userPID)
+    tweetWithHashtags(numOfUsers, numOfRequests, serverPID, userPID)
+    tweetWithMentions(numOfUsers, numOfRequests, serverPID, userPID)
+    sendRetweets(serverPID, numOfUsers, userPID)
+    queryForSubscribedTo(numOfUsers, serverPID)
+    queryHashTag(serverPID, numOfUsers)
+    queryMention(serverPID, numOfUsers)
+    getLiveView(serverPID, numOfUsers)
     deleteUsers(usersToDelete, serverPID, numOfUsers)
     disconnectUsers(numOfUsersToDisconnect, serverPID, numOfUsers)
+    reconnectUsers(serverPID, numOfUsers)
 end
 
 # randomly pick a tweet from tweest list and use it for a user
@@ -164,14 +179,6 @@ def followerGenerator(serverPID, userName, numOfUsers, numOfRequests, userPID) w
 end
 
 def followerGenerator(serverPID, _userName, numOfUsers, numOfRequests, userPID) when numOfRequests == 0 do
-    # randomly pick a tweet from list and use it for a user
-    tweetForUser(numOfUsers, numOfRequests, serverPID, userPID)
-    tweetWithHashtags(numOfUsers, numOfRequests, serverPID, userPID)
-    tweetWithMentions(numOfUsers, numOfRequests, serverPID, userPID)
-    sendRetweets(serverPID, numOfUsers, userPID)
-    queryForSubscribedTo(numOfUsers, serverPID)
-    queryHashTag(serverPID, numOfUsers)
-    queryMention(serverPID, numOfUsers)
 end
 
 #generate followers for a user
@@ -203,8 +210,22 @@ def disconnectUsers(numOfUsersToDisconnect, serverPID, numOfUsers) do
     GenServer.cast(serverPID, {:disconnectRandomUsers, userToDisconnect, numOfUsersToDisconnect})
 end
 
-# def reconnectUsers()
+def reconnectUsers(serverPID, numOfUsers) do
+    userToReconnect = getDisconnectedUser(serverPID, numOfUsers)
+    if userToReconnect != " " do
+        GenServer.cast(serverPID, {:reconnectUser, userToReconnect})
+    end    
+end
 
+def getDisconnectedUser(serverPID, numOfUsers) do
+    disconnectedUsersList = GenServer.call(serverPID, {:getDisconnectedUsers, numOfUsers})
+    disconnectUser =     if !Enum.empty?(disconnectedUsersList) do
+                            Enum.random(disconnectedUsersList)
+                         else
+                            " "
+                         end
+    disconnectUser
+end
 #Query for a user you subscribed to
 def queryForSubscribedTo(numOfUsers, serverPID) do
     randomUser = getRandomUser(numOfUsers)
@@ -244,4 +265,16 @@ def queryMention(serverPID, numOfUsers) do
     GenServer.cast(serverPID, {:queryMention, randomUserName, numOfUsers})
 end
 
+def getLiveView(serverPID, numOfUsers) do
+    userName = getRandomUser(numOfUsers)
+    disconnectedUsersList = getDisconnectedUserList(serverPID, numOfUsers)
+    if (!Enum.member?(disconnectedUsersList, userName)) do
+        GenServer.cast(serverPID, {:getLiveView, userName})
+    end
+end
+
+def getDisconnectedUserList(serverPID, numOfUsers) do
+    disconnectedUserList = GenServer.call(serverPID, {:getDisconnectedUsers, numOfUsers})
+    disconnectedUserList
+end
 end

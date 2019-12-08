@@ -224,6 +224,26 @@ def handle_cast({:queryMention, mentionedUserName, numOfUsers}, state) do
 end
 
 @impl true
+def handle_cast({:reconnectUser, userToReconnect}, state) do
+    reconnectUserPID = elem(Enum.at(:ets.lookup(:disconnectedUsers, userToReconnect),0),1)
+    :ets.insert(:userRegister, {userToReconnect, reconnectUserPID})
+    :ets.delete(:disconnectedUsers, userToReconnect)
+    IO.inspect("#{userToReconnect} has been Reconnected!!")
+    {:noreply, state}
+end
+
+@impl true 
+def handle_cast({:getLiveView, userName}, state) do
+    tweets = elem(Enum.at(:ets.lookup(:tweetsRegister,userName),0),3)
+    tweets = tweets ++ elem(Enum.at(:ets.lookup(:hashtagsRegister,userName),0),3) 
+    tweets = tweets ++ elem(Enum.at(:ets.lookup(:mentionsRegister,userName),0),3)
+    IO.puts("_________________________________________LIVE VIEW of #{userName}_________________________________________")
+    Enum.each(tweets, fn tweet -> IO.puts(tweet) end)
+    IO.puts("____________________________________________________________________________________________________")
+    {:noreply, state}
+end
+
+@impl true
 def handle_call({:getTweetToRetweet, userName}, _from, state) do
     followingList = elem(Enum.at(:ets.lookup(:followingRegister,userName),0),1)
     randomFollowingUser =   if !Enum.empty?(followingList) do
@@ -251,8 +271,6 @@ def handle_call({:getTweetToRetweet, userName}, _from, state) do
     {:reply, retweet, state}
 end
 
-
-
 @impl true
 def handle_call({:getTweetLimit, userName}, _from, state) do
     tweetLimit = elem(Enum.at(:ets.lookup(:tweetsRegister,userName),0),2)
@@ -264,6 +282,37 @@ end
 def handle_call({:getfollowingUsers, userName}, _from, state) do
     followingUsersList = elem(Enum.at(:ets.lookup(:followingRegister,userName),0),1)
     {:reply, followingUsersList, state}
+end
+
+@impl true
+def handle_call({:getDisconnectedUsers, numOfUsers}, _from, state) do
+    listOfDisconnectedUsers = getListOfDisconnectedUsers(1, numOfUsers, [])
+    listOfDisconnectedUsers =   if (!Enum.empty?(listOfDisconnectedUsers)) do
+                                    listOfDisconnectedUsers
+                                else
+                                    []
+                                end
+    {:reply, listOfDisconnectedUsers, state}
+end
+
+def getListOfDisconnectedUsers(startValue, numOfUsers, disConnectedList) when startValue <= numOfUsers do
+        userName = "User" <> Integer.to_string(startValue)
+        disconnectedTuple = :ets.lookup(:disconnectedUsers, userName)
+        disconnectedList = if(disconnectedTuple != []) do
+        disconnectedUser = elem(Enum.at(disconnectedTuple,0),0)
+        disConnectedList = if (disconnectedUser != nil or disconnectedUser != "") do
+            disConnectedList = disConnectedList ++ [disconnectedUser]
+            disConnectedList
+        end
+        disConnectedList
+        end
+        getListOfDisconnectedUsers(startValue+1, numOfUsers, disConnectedList)
+    
+end
+
+def getListOfDisconnectedUsers(startValue, numOfUsers, disConnectedList) when startValue > numOfUsers do
+    # if (!Enum.empty?())
+    disConnectedList
 end
 
 end
