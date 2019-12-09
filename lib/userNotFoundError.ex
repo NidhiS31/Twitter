@@ -1,4 +1,3 @@
-  
 defmodule UserNotFoundError do
-    defexception message: "User not found!"
-  end
+  defexception message: "User not found!"
+end
